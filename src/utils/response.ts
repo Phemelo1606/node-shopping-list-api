@@ -16,3 +16,8 @@ export function sendError(
         error: details ? { message, details } : {message}
     })
 }
+
+export function sendNoContent(res: ServerResponse): void {
+  res.writeHead(204);
+  res.end();
+}

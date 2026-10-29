@@ -1,6 +1,6 @@
 import http, { IncomingMessage, ServerResponse} from 'http';
-import { getAllItems, addItem, getItemById, updateItem } from './data/itemStore';
-import { sendJson, sendError} from './utils/response';
+import { getAllItems, addItem, getItemById, updateItem, deleteItem  } from './data/itemStore';
+import { sendJson, sendError, sendNoContent} from './utils/response';
 import { readJsonBody } from './utils/body';
 import { validateNewItem, validateItemUpdate} from './validation/itemValidation';
 
@@ -66,6 +66,14 @@ async function handleUpdate(req: IncomingMessage, res: ServerResponse, id: numbe
   sendJson(res, 200, { success: true, data: updateItem(id, data) });
 }
 
+function handleDelete(res: ServerResponse, id: number): void {
+  if (!deleteItem(id)) {
+    return sendError(res, 404, `Item with id ${id} not found`);
+  }
+  sendNoContent(res);
+}
+
+
 //Router
 
 const server = http.createServer(async(req, res) => {
@@ -94,6 +102,7 @@ const server = http.createServer(async(req, res) => {
 
     if (method === 'GET') return handleGetOne(res, id);
     if (method === 'PUT') return await handleUpdate(req, res, id);
+    if (method === 'DELETE') return handleDelete(res, id);
     return sendError(res, 405, `Method ${method} is not allowed on /items/:id`);
   } catch (error) {
     console.error('Unexpected error:', error);

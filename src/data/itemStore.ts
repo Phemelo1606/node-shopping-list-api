@@ -25,3 +25,12 @@ export function updateItem(id: number, changes: ItemChanges): Item | undefined {
     Object.assign(item, changes);
     return item;
 }
+
+export function deleteItem(id: number): boolean {
+  const index = items.findIndex((item) => item.id === id);
+  if (index === -1) {
+    return false;
+  }
+  items.splice(index, 1);
+  return true;
+}
