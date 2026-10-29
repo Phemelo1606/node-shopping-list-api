@@ -12,7 +12,7 @@ export function sendError(
     details?: string[]
 ): void {
     sendJson(res, statusCode, {
-        succed: false,
+        success: false,
         error: details ? { message, details } : {message}
     })
 }
