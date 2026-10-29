@@ -1,4 +1,5 @@
 import { IncomingMessage } from 'http';
+import { BadRequestError } from '../errors/httpErrors';
 
 export function readJsonBody(req: IncomingMessage): Promise<unknown> {
   return new Promise((resolve, reject) => {
@@ -16,7 +17,7 @@ export function readJsonBody(req: IncomingMessage): Promise<unknown> {
       try {
         resolve(JSON.parse(raw));
       } catch {
-        reject(new Error('Invalid JSON'));
+        reject(new BadRequestError('Request body must be valid JSON'));
       }
     });
 

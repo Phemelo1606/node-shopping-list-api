@@ -1,6 +1,6 @@
 import { NewItemData, ItemChanges } from '../models/item';
 
-interface ValidationResult<T> {
+export interface ValidationResult<T> {
   errors: string[];
   data?: T;
 }

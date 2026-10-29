@@ -1,22 +1,34 @@
 import { ServerResponse } from 'http';
+import { SuccessResponse, ErrorResponse } from '../types/api';
 
-export function sendJson(res: ServerResponse, statusCode: number, body: unknown): void {
-    res.writeHead(statusCode, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(body));
+function sendJson(
+  res: ServerResponse,
+  statusCode: number,
+  body: SuccessResponse<unknown> | ErrorResponse
+): void {
+  res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(body));
+}
+
+export function sendSuccess<T>(res: ServerResponse, statusCode: number, data: T): void {
+  const body: SuccessResponse<T> = { success: true, data };
+  sendJson(res, statusCode, body);
 }
 
 export function sendError(
-    res: ServerResponse,
-    statusCode: number,
-    message: string,
-    details?: string[]
+  res: ServerResponse,
+  statusCode: number,
+  message: string,
+  details?: string[]
 ): void {
-    sendJson(res, statusCode, {
-        success: false,
-        error: details ? { message, details } : {message}
-    })
+  const body: ErrorResponse = {
+    success: false,
+    error: details ? { message, details } : { message },
+  };
+  sendJson(res, statusCode, body);
 }
 
+// 204 No Content: the one response with no JSON body
 export function sendNoContent(res: ServerResponse): void {
   res.writeHead(204);
   res.end();

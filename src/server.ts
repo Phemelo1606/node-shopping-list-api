@@ -1,115 +1,105 @@
-import http, { IncomingMessage, ServerResponse} from 'http';
-import { getAllItems, addItem, getItemById, updateItem, deleteItem  } from './data/itemStore';
-import { sendJson, sendError, sendNoContent} from './utils/response';
+import http, { IncomingMessage, ServerResponse } from 'http';
+import { getAllItems, getItemById, addItem, updateItem, deleteItem } from './data/itemStore';
+import { Item } from './models/item';
+import { BadRequestError, NotFoundError, MethodNotAllowedError } from './errors/httpErrors';
+import { handleError } from './utils/errorHandler';
+import { sendSuccess, sendNoContent } from './utils/response';
 import { readJsonBody } from './utils/body';
-import { validateNewItem, validateItemUpdate} from './validation/itemValidation';
+import { validateNewItem, validateItemUpdate, ValidationResult } from './validation/itemValidation';
 
 const PORT = process.env.PORT || 3000;
 
+// Helpers
+
 // Accepts only whole numbers like "5". Rejects "abc", "-1", "1.5".
-function parseId(raw: string): number | null {
-    return /^\d+$/.test(raw) ? Number(raw) : null;
+function parseId(raw: string): number {
+  if (!/^\d+$/.test(raw)) {
+    throw new BadRequestError('Item id must be a whole number');
+  }
+  return Number(raw);
 }
 
-// Reads the JSON body. If it's broken, replies with 400 and returns undefined.
-async function readBodyOrRejection(req: IncomingMessage, res: ServerResponse): Promise<unknown> {
-    try {
-        return await readJsonBody(req);
-    } catch {
-        sendError(res, 400, 'Request body must be valid JSON');
-        return undefined;
-    }
+function findItemOrThrow(id: number): Item {
+  const item = getItemById(id);
+  if (!item) {
+    throw new NotFoundError(`Item with id ${id} not found`);
+  }
+  return item;
 }
 
-//Handlers- one per endpoint
+// Returns the validated data, or throws a 400 with the list of problems
+function assertValid<T>(result: ValidationResult<T>): T {
+  if (result.errors.length > 0 || !result.data) {
+    throw new BadRequestError('Validation failed', result.errors);
+  }
+  return result.data;
+}
+
+// Handlers: one per endpoint
 
 function handleGetAll(res: ServerResponse): void {
-    sendJson(res, 200, { success: true, data: getAllItems() });
+  sendSuccess(res, 200, getAllItems());
 }
 
-async function handleCreate(req:IncomingMessage, res: ServerResponse): Promise<void> {
-    const body = await readBodyOrRejection(req, res);
-    if (body === undefined) return;
-
-    const  { errors, data } = validateNewItem(body);
-  if (errors.length > 0 || !data) {
-    return sendError(res, 400, 'Validation failed', errors);
-  }
-
-  sendJson(res, 201, { success: true, data: addItem(data) });
+async function handleCreate(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const body = await readJsonBody(req);
+  const data = assertValid(validateNewItem(body));
+  sendSuccess(res, 201, addItem(data));
 }
 
 function handleGetOne(res: ServerResponse, id: number): void {
-  const item = getItemById(id);
-  if (!item) {
-    return sendError(res, 404, `Item with id ${id} not found`);
-  }
-  sendJson(res, 200, { success: true, data: item });
+  sendSuccess(res, 200, findItemOrThrow(id));
 }
 
 async function handleUpdate(req: IncomingMessage, res: ServerResponse, id: number): Promise<void> {
-  // 1. Does the item exist?
-  if (!getItemById(id)) {
-    return sendError(res, 404, `Item with id ${id} not found`);
-  }
-
-  // 2. Is the body valid?
-  const body = await readBodyOrRejection(req, res);
-  if (body === undefined) return;
-
-  const { errors, data } = validateItemUpdate(body);
-  if (errors.length > 0 || !data) {
-    return sendError(res, 400, 'Validation failed', errors);
-  }
-
-  // 3. Apply the changes
-  sendJson(res, 200, { success: true, data: updateItem(id, data) });
+  findItemOrThrow(id); // 404 first, if it doesn't exist
+  const body = await readJsonBody(req);
+  const changes = assertValid(validateItemUpdate(body));
+  sendSuccess(res, 200, updateItem(id, changes));
 }
 
 function handleDelete(res: ServerResponse, id: number): void {
-  if (!deleteItem(id)) {
-    return sendError(res, 404, `Item with id ${id} not found`);
-  }
+  findItemOrThrow(id); // 404 if it doesn't exist
+  deleteItem(id);
   sendNoContent(res);
 }
 
+// Router
 
-//Router
+async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const method = req.method ?? 'GET';
+  const { pathname } = new URL(req.url ?? '/', 'http://localhost');
+  const parts = pathname.split('/').filter(Boolean); // '/items/5' -> ['items', '5']
 
-const server = http.createServer(async(req, res) => {
-      try {
-    const method = req.method ?? 'GET';
-    const { pathname } = new URL(req.url ?? '/', 'http://localhost');
-    const parts = pathname.split('/').filter(Boolean); // '/items/5' -> ['items', '5']
+  // Only /items and /items/:id exist
+  if (parts[0] !== 'items' || parts.length > 2) {
+    throw new NotFoundError('Route not found');
+  }
 
-    // Only /items and /items/:id exist
-    if (parts[0] !== 'items' || parts.length > 2) {
-      return sendError(res, 404, 'Route not found');
-    }
+  // /items
+  if (parts.length === 1) {
+    if (method === 'GET') return handleGetAll(res);
+    if (method === 'POST') return handleCreate(req, res);
+    throw new MethodNotAllowedError(method, '/items');
+  }
 
-    // /items
-    if (parts.length === 1) {
-      if (method === 'GET') return handleGetAll(res);
-      if (method === 'POST') return await handleCreate(req, res);
-      return sendError(res, 405, `Method ${method} is not allowed on /items`);
-    }
+  // /items/:id
+  const id = parseId(parts[1]);
+  if (method === 'GET') return handleGetOne(res, id);
+  if (method === 'PUT') return handleUpdate(req, res, id);
+  if (method === 'DELETE') return handleDelete(res, id);
+  throw new MethodNotAllowedError(method, '/items/:id');
+}
 
-    // /items/:id
-    const id = parseId(parts[1]);
-    if (id === null) {
-      return sendError(res, 400, 'Item id must be a whole number');
-    }
-
-    if (method === 'GET') return handleGetOne(res, id);
-    if (method === 'PUT') return await handleUpdate(req, res, id);
-    if (method === 'DELETE') return handleDelete(res, id);
-    return sendError(res, 405, `Method ${method} is not allowed on /items/:id`);
+const server = http.createServer(async (req, res) => {
+  try {
+    await route(req, res);
   } catch (error) {
-    console.error('Unexpected error:', error);
-    sendError(res, 500, 'Internal server error');
+    handleError(res, error); // the ONE place every error ends up
   }
 });
 
 server.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
+
