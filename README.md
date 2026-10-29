@@ -1,68 +1,285 @@
-Topic: NodeTS <br />
-Submission Date: 30 October 2026 <br />
-Time: 09:00 AM
+# Shopping List API
 
+A RESTful API for managing a shopping list, built with **Node.js** and **TypeScript** using Node's built-in `http` module (no web framework). Users can add, view, update, and delete the items they want to buy, and interact with the API through a tool like Postman.
 
-Please submit by pushing to your GitHub repository and creating a pull request to your mentor
+## Features
 
-# Title: Task 6 - Shopping List API
+- **CRUD operations:** create, read, update, and delete shopping list items.
+- **Automatic ID generation:** the server assigns each item a unique numeric ID.
+- **Input validation:** checks names, quantities, and purchased status, and returns every problem found in one response.
+- **Consistent JSON responses:** every response uses the same shape, so clients always know what to expect.
+- **Centralised error handling:** `400` for bad input, `404` for missing items, `405` for unsupported methods, and `500` for unexpected errors.
 
-## Project Overview
-You are tasked to build a shopping list REST API that lets users manage the items they want to buy. The app allows users to add, view, update, and delete items from the shopping list.
+## Technologies Used
 
-## Use-case Scenario
+- **Node.js:** JavaScript runtime for the server.
+- **TypeScript:** adds static typing for safer code.
+- **Built-in `http` module:** handles requests and responses without a framework.
+- **In-memory storage:** items are kept in an array while the server runs (no database).
+- **ts-node-dev:** runs TypeScript directly and restarts on file changes during development.
 
- - Suppose you need to make a note of groceries before going to the store.
- - You make a shopping list consisting of items such as "Milk, Eggs, Bread.".
- - As you shop, you can check off items that you've purchased.
- - You can modify amounts (e.g., 2L of milk rather than 1).
- - You can remove items you do not need anymore.
+## Installation
 
-The application should run as a NodeJS HTTP server with Typescript. Users must be able to interact with the application using API requests, e.g Postman.
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/Phemelo1606/node-shopping-list-api
+   ```
+2. Navigate to the project directory:
+   ```bash
+   cd node-shopping-list-api
+   ```
+3. Install the dependencies:
+   ```bash
+   npm install
+   ```
 
-## Core Features
- - Add an item
-   - Endpoint: POST /items
- - Get All items
-   - Endpoint: GET /items
- - Get a Single item by ID
-   - Endpoint: GET /items/:id
- - Update an item (name, quantity, purchased status, etc…)
-   - Endpoint: PUT /items/:id
- - Delete an item
-   - Endpoint: DELETE /items/:id
+**Requirements:** Node.js (LTS version) and npm.
 
-## Task Breakdown
+## Usage
 
-### Sprint 1: Project Setup
-   - Setup Node.js + TypeScript project (tsconfig.json, package.json)
-   - Create a basic HTTP server (server.ts)
+### Run in development mode
 
-### Sprint 2: Shopping List Items CRUD
-   - Create Item type in models/item.ts.
-   - Store items in memory (array of objects).
-   - Implement GET /items → return all items.
-   - Implement POST /items → create a new item.
-   - Return validation errors if fields are missing.
+Starts the server and restarts it automatically when you save a file:
 
-### Sprint 3: Item Details & Updates
-   - Implement GET /items/:id → return item by ID.
-   - Implement PUT /items/:id → update name, quantity, or purchased status.
-   - Return 404 if item not found.
-   - Add validation.
+```bash
+npm run dev
+```
 
-### Sprint 4: Delete Items
-   - Implement DELETE /items/:id.
-   - Return 204 No Content if deleted, 404 if not found.
+### Build and run for production
 
-### Sprint 5: Error Handling & Response Consistency
-   - Create a reusable error handler (400 for bad input, 404 for not found).
-   - Ensure all responses are JSON with a consistent shape.
+```bash
+npm run build
+npm start
+```
 
-### Sprint 6: Testing & Documentation
-   - Test endpoints with Postman.
-   - Document API endpoints in a README.md.
+The server runs on **http://localhost:3000** by default. To use a different port, set the `PORT` environment variable (for example, `$env:PORT=3001` in PowerShell before running `npm run dev`).
 
-### Deliverables
-   1. Readme file
-   2. Project
+> **Note:** Items are stored in memory, so **all data is lost when the server restarts**. This includes restarts triggered by saving a file in development mode.
+
+## Project Structure
+
+node-shopping-list-api/
+src/
+
+- data/
+  - itemStore.ts # In-memory storage and data functions
+- errors/
+  - httpErrors.ts # Custom error classes (400, 404, 405)
+- models/
+  - item.ts # Item type definition
+- types/
+  - api.ts # Response shape types
+- utils/
+  - body.ts # Reads and parses the JSON request body
+  - errorHandler.ts # Central error handler
+  - response.ts # Helpers for sending JSON responses
+- validation/
+  - itemValidation.ts # Input validation rules
+- server.ts # HTTP server and routing
+- package.json
+- tsconfig.json
+- README.md
+
+## The Item Model
+
+Field | Type | Description |
+`id` |number | Unique ID, generated by the server (1, 2, 3, ...) |
+`name` | string | Name of the item, for example `"Milk"` |
+`quantity` | number | Whole number of 1 or more |
+`purchased` | boolean | `true` once the item has been bought |
+
+Example:
+
+```json
+{
+  "id": 1,
+  "name": "Milk",
+  "quantity": 2,
+  "purchased": false
+}
+```
+
+## API Endpoints
+
+| Method | Endpoint | Description | Success status |
+
+`POST` | `/items` | Add a new item | `201 Created` |
+`GET` | `/items` | Get all items | `200 OK` |
+`GET` | `/items/:id` | Get a single item by ID | `200 OK` |
+`PUT` | `/items/:id` | Update an item | `200 OK` |
+`DELETE` | `/items/:id` | Delete an item | `204 No Content` |
+
+### 1. Add an item: `POST /items`
+
+**Request body:**
+
+| Field | Required | Default |
+
+`name` | Yes | none |
+`quantity` | No | `1` |
+`purchased` | No | `false` |
+
+json
+{ "name": "Milk", "quantity": 2 }
+
+**Response: `201 Created`**
+json
+{
+"success": true,
+"data": {
+"id": 1,
+"name": "Milk",
+"quantity": 2,
+"purchased": false
+}
+}
+
+### 2. Get all items: `GET /items`
+
+**Response: `200 OK`**
+
+```json
+{
+  "success": true,
+  "data": [
+    { "id": 1, "name": "Milk", "quantity": 2, "purchased": false },
+    { "id": 2, "name": "Eggs", "quantity": 1, "purchased": false }
+  ]
+}
+```
+
+If the list is empty, `data` is `[]`.
+
+### 3. Get one item: `GET /items/:id`
+
+**Response: `200 OK`**
+
+```json
+{
+  "success": true,
+  "data": { "id": 1, "name": "Milk", "quantity": 2, "purchased": false }
+}
+```
+
+### 4. Update an item: `PUT /items/:id`
+
+Send **only the fields you want to change**. At least one of `name`, `quantity`, or `purchased` is required. The `id` cannot be changed, and any `id` in the body is ignored.
+
+```json
+{ "purchased": true }
+```
+
+**Response: `200 OK`** (returns the full updated item)
+
+```json
+{
+  "success": true,
+  "data": { "id": 1, "name": "Milk", "quantity": 2, "purchased": true }
+}
+```
+
+### 5. Delete an item: `DELETE /items/:id`
+
+**Response: `204 No Content`** with an empty body. IDs are not reused after deletion.
+
+## Validation Rules
+
+| Field | Rule |
+`name` | Required when creating. Must be a non-empty string. Surrounding spaces are trimmed. |
+`quantity` | Must be a whole number of 1 or more (no decimals, zero, or negatives). |
+`purchased` | Must be `true` or `false`. |
+Request body | Must be valid JSON and a JSON object. |
+`:id` in the URL | Must be a whole number, for example `5`. |
+
+All validation problems are returned together, not one at a time.
+
+## Error Responses
+
+Every error uses the same shape:
+
+```json
+{
+  "success": false,
+  "error": {
+    "message": "Validation failed",
+    "details": [
+      "quantity must be a whole number of 1 or more",
+      "purchased must be true or false"
+    ]
+  }
+}
+```
+
+`details` only appears for validation errors.
+
+| Status | Meaning | Example |
+`400 Bad Request` | Invalid input | Missing name, bad quantity, broken JSON, or `/items/abc` |
+`404 Not Found` | Item or route does not exist | `GET /items/999` or `GET /banana` |
+`405 Method Not Allowed` | The URL exists but not for that method | `PATCH /items` or `DELETE /items` |
+`500 Internal Server Error` | Unexpected server problem | The real error is logged to the terminal, not sent to the client |
+
+All responses are JSON, except `204 No Content`, which has no body.
+
+## Testing with Postman
+
+Start the server first with `npm run dev`. Create each request in Postman using the URLs below.
+
+### 1. Get all items
+
+- **Method:** `GET`
+- **URL:** `http://localhost:3000/items`
+- Expect `200 OK` and a list of items (empty at first).
+
+### 2. Add a new item
+
+- **Method:** `POST`
+- **URL:** `http://localhost:3000/items`
+- **Body:** select **raw**, then choose **JSON** from the dropdown, and enter:
+  ```json
+  { "name": "Milk", "quantity": 2 }
+  ```
+- Expect `201 Created` and the new item with its `id`.
+
+### 3. Get a single item
+
+- **Method:** `GET`
+- **URL:** `http://localhost:3000/items/1`
+- Expect `200 OK` and the item.
+
+### 4. Update an item
+
+- **Method:** `PUT`
+- **URL:** `http://localhost:3000/items/1`
+- **Body:** raw, JSON:
+  ```json
+  { "purchased": true }
+  ```
+- Expect `200 OK` and the updated item.
+
+### 5. Delete an item
+
+- **Method:** `DELETE`
+- **URL:** `http://localhost:3000/items/1`
+- Expect `204 No Content` and an empty body.
+
+### Error cases to try
+
+| Request | Expected |
+| `POST /items` with `{ "quantity": 3 }` | `400`, `name is required` |
+| `POST /items` with `{ "name": "", "quantity": -5, "purchased": "yes" }` | `400`, three validation errors |
+| `POST /items` with broken JSON | `400`, `Request body must be valid JSON` |
+| `GET /items/999` | `404`, `Item with id 999 not found` |
+| `GET /items/abc` | `400`, `Item id must be a whole number` |
+| `PUT /items/1` with `{}` | `400`, `Provide at least one of: name, quantity, purchased` |
+| `PUT /items/999` with `{ "purchased": true }` | `404` |
+| `DELETE /items/999` | `404` |
+| `GET /banana` | `404`, `Route not found` |
+| `PATCH /items` | `405` |
+
+Remember to create items again after any server restart, because the list resets.
+
+## Design Notes
+
+- **`PUT` is a partial update.** Following the project brief, `PUT /items/:id` changes only the fields you send. Strict HTTP convention would use `PATCH` for this.
+- **Errors are thrown and handled in one place.** Handlers throw errors such as `NotFoundError` and `BadRequestError`, and a single error handler turns them into JSON responses.
+- **Each file has one job.** Routing, validation, storage, and response formatting are separate, so each can change without affecting the others.
