@@ -1,0 +1,28 @@
+{
+  "name": "shopping-list-api",
+  "version": "1.0.0",
+  "description": "Topic: NodeTS <br />\r Submission Date: 30 October 2026 <br />\r Time: 09:00 AM",
+  "main": "index.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Phemelo1606/node-shopping-list-api.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Phemelo1606/node-shopping-list-api/issues"
+  },
+  "homepage": "https://github.com/Phemelo1606/node-shopping-list-api#readme",
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.9.3"
+  }
+}
